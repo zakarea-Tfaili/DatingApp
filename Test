@@ -1,44 +1,65 @@
 <div style="padding: 20px">
   <h2>Create New Simulation</h2>
 
-  <mat-form-field class="example-full-width" style="width: 400px">
-    <mat-label>Search for Instrument (ISIN, Issuer...)</mat-label>
-    <input
-      type="text"
-      placeholder="Start typing..."
-      matInput
-      [formControl]="searchControl"
-      [matAutocomplete]="auto"
-    />
+  <mat-form-field class="example-full-width" style="width: 450px">
+    <mat-label>Select Instruments</mat-label>
     
-    @if (isSearching()) {
-      <mat-progress-spinner
-        matSuffix
-        mode="indeterminate"
-        [diameter]="20"
-      ></mat-progress-spinner>
-    }
+    <mat-select [formControl]="selectionControl" multiple>
+      
+      <mat-form-field
+        appearance="outline"
+        style="
+          position: sticky;
+          top: 0;
+          z-index: 100;
+          background: white;
+          width: 100%;
+          padding: 8px 12px 0 12px;
+          box-sizing: border-box;
+        "
+      >
+        <mat-label>Start typing to search...</mat-label>
+        <input
+          matInput
+          [formControl]="searchControl"
+          (keydown)="$event.stopPropagation()" 
+        />
+        @if (isSearching()) {
+        <mat-progress-spinner
+          matSuffix
+          mode="indeterminate"
+          [diameter]="20"
+        ></mat-progress-spinner>
+        }
+      </mat-form-field>
 
-    <mat-autocomplete
-      #auto="matAutocomplete"
-      (optionSelected)="onOptionSelected($event)"
-      [displayWith]="displayFn"
-    >
       @for (option of searchResults(); track option.id) {
         <mat-option [value]="option">
-          {{ option.description }}
+        
+        <div style="display: flex; flex-direction: column; line-height: 1.4; padding: 2px 0;">
+            
+            <span style="font-weight: 600; font-size: 1.05em;">
+              {{ option.isin }}
+            </span>
+            
+            <span style_font-size="0.85em" color="#333">
+              {{ option.issuer }}
+            </span>
+            <span style="font-size: 0.9em; color: #555;">
+              Coupon: **{{ option.coupon }}%** | Principal: **{{ option.principal | number }}**
+            </span>
+          </div>
         </mat-option>
       }
-      
+
       @if (isSearching() && searchResults().length === 0) {
         <mat-option disabled>Loading...</mat-option>
       }
-      
       @if (!isSearching() && searchTerm().length > 0 && searchResults().length === 0) {
         <mat-option disabled>No results found</mat-option>
       }
 
-    </mat-autocomplete>
+    </mat-select>
   </mat-form-field>
 
   <hr style="margin: 20px 0" />
