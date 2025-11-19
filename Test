@@ -1,89 +1,24 @@
-<div class="p-5">
-  <h2 class="mb-4 text-xl font-bold">Create New Simulation</h2>
+string targetPortfolio = "TargetPortfolioName";
+DateTime fromDate = new DateTime(2023, 01, 01);
+DateTime toDate = new DateTime(2023, 01, 31);
 
-  <div class="grid grid-cols-3 border border-gray-300 rounded-md overflow-hidden max-w-2xl mb-8 text-sm shadow-sm">
-    
-    <div class="bg-gray-200 text-gray-800 p-2 font-bold text-center border-b border-white">Summary</div>
-    <div class="bg-gray-200 text-gray-800 p-2 font-bold text-center border-b border-white">Current</div>
-    <div class="bg-gray-200 text-gray-800 p-2 font-bold text-center border-b border-white">After simulation</div>
-
-    <div class="bg-gray-100 text-gray-700 p-2 font-bold border-b border-gray-200">French RC impact</div>
-    <div class="p-2 text-right border-b border-gray-200 bg-white">1,000,000</div>
-    <div class="p-2 text-right border-b border-gray-200 bg-white">1,200,000</div>
-
-    <div class="bg-gray-100 text-gray-700 p-2 font-bold border-b border-gray-200">French P&L impact</div>
-    <div class="p-2 text-right border-b border-gray-200 bg-white">500,000</div>
-    <div class="p-2 text-right border-b border-gray-200 bg-white">550,000</div>
-
-    <div class="bg-gray-100 text-gray-700 p-2 font-bold">IFRS P&L impact</div>
-    <div class="p-2 text-right bg-white">200,000</div>
-    <div class="p-2 text-right bg-white">210,000</div>
-
-  </div>
-
-  <mat-form-field class="example-full-width w-[450px]">
-    <mat-label>Select Instruments</mat-label>
-    
-    <mat-select [formControl]="selectionControl" multiple>
-      
-      <mat-form-field
-        appearance="outline"
-        class="sticky top-0 z-[100] bg-white w-full box-border pt-2 px-3 pb-0"
-      >
-        <mat-label>Start typing to search...</mat-label>
-        <input
-          matInput
-          [formControl]="searchControl"
-          (keydown)="$event.stopPropagation()" 
-        />
-        @if (isSearching()) {
-        <mat-progress-spinner
-          matSuffix
-          mode="indeterminate"
-          [diameter]="20"
-        ></mat-progress-spinner>
-        }
-      </mat-form-field>
-
-      @for (option of searchResults(); track option.id) {
-        <mat-option [value]="option">
-          <div class="flex flex-col leading-snug py-0.5">
-            <span class="font-semibold text-base">
-              {{ option.isin }}
-            </span>
-            <span class="text-sm text-gray-700">
-              {{ option.issuer }}
-            </span>
-            <span class="text-sm text-gray-600">
-              Coupon: <strong class="font-medium">{{ option.coupon }}%</strong> | 
-              Principal: <strong class="font-medium">{{ option.principal | number }}</strong>
-            </span>
-          </div>
-        </mat-option>
-      }
-
-      @if (isSearching() && searchResults().length === 0) {
-        <mat-option disabled>Loading...</mat-option>
-      }
-      @if (!isSearching() && searchTerm().length > 0 && searchResults().length === 0) {
-        <mat-option disabled>No results found</mat-option>
-      }
-
-    </mat-select>
-  </mat-form-field>
-
-  <hr class="my-5" />
-
-  <h3>Simulation Instruments</h3>
-
-  <ag-grid-angular
-    class="ag-theme-quartz w-full h-[500px]"
-    [rowData]="rowData()"
-    [columnDefs]="colDefs()"
-    
-    [masterDetail]="true" 
-    [detailCellRendererParams]="detailCellRendererParams"
-    [getRowId]="getRowId"
-  >
-  </ag-grid-angular>
-</div>
+var aggregatedSums = await context.CalculationDetails
+    .Join(context.Calculations,
+          detail => detail.CalculationId,
+          calc => calc.Id,
+          (detail, calc) => new { Detail = detail, Calc = calc })
+    .Where(x => x.Calc.Portfolio == targetPortfolio &&
+                x.Calc.BusinessDate >= fromDate &&
+                x.Calc.BusinessDate <= toDate)
+    .Where(x => x.Calc.CalculationTimestamp == context.Calculations
+        .Where(c2 => c2.BusinessDate == x.Calc.BusinessDate && 
+                     c2.Portfolio == targetPortfolio)
+        .Max(c2 => c2.CalculationTimestamp))
+    .GroupBy(x => 1)
+    .Select(g => new
+    {
+        TotalFrenchRC = g.Sum(x => x.Detail.FrenchRC),
+        TotalFrenchPandL = g.Sum(x => x.Detail.FrenchPandL),
+        TotalIrfsPandL = g.Sum(x => x.Detail.IrfsPandL)
+    })
+    .FirstOrDefaultAsync();
